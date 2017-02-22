@@ -4,7 +4,7 @@
 # check salt-master server ip first in cloud-init settings!!
 # check network id!!
 
-for i in {1..4}
+for i in {1..9}
 do
 
 server_name="node-$i"
