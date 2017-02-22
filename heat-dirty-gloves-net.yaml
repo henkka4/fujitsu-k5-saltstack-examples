@@ -1,0 +1,88 @@
+heat_template_version: 2013-05-23
+# Author: Henri Alakoski
+# Date: 16/02/2017
+
+description: create network and security group for K5
+
+# check input parameters before you runt this stack (routerID, keypair name etc)
+
+# Input parameters
+parameters:
+  public_net:
+    type: string
+    label: external network ID
+    description: Public network
+    default: "42d80316-c2e5-4628-b63b-6e87b3749220"
+  private_net1_name:
+    type: string
+    label: Private network name or ID
+    description: Network to attach instance to.
+    default: "dirty-gloves-net01"
+  private_net1_cidr:
+    type: string
+    label: Private network name or ID
+    description: Network to attach instance to.
+    default: "10.10.10.0/24"
+  az:
+    type: string
+    label: Availability Zone
+    description: Region AZ to use
+    default: "fi-1a"
+# You need to change router id to point your own router that u created with "neutron router-create router01"
+# use "neutron router-list" to check router id
+  ext_router:
+    type: string
+    label: External Router
+    description: Router with external access for global ip allocation
+    default: "21941434-c9c2-40af-96c9-2e670037baaa"
+
+
+# K5 Infrastructure resources to be built
+resources:
+
+  # Create a new private network
+  private_net1:
+    type: OS::Neutron::Net
+    properties:
+      availability_zone: { get_param: az }
+      name: { get_param: private_net1_name }
+
+  # Create a new subnet on the private network
+  private_net1-subnet:
+    type: OS::Neutron::Subnet
+    depends_on: private_net1
+    properties:
+      availability_zone: { get_param: az }
+      name: private_net1-subnet
+      network_id: { get_resource: private_net1 }
+      cidr: { get_param: private_net1_cidr }
+      dns_nameservers:
+        - 213.214.162.9
+        - 213.214.162.10
+
+  # Connect an interface on the private network's subnet to the router
+  router_interface1:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_param: ext_router }
+      subnet_id: { get_resource: private_net1-subnet }
+
+
+  # Create a security group
+  server_security_group1:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      description: Add security group rules for server
+      name: dirty-gloves-SG
+      rules:
+        - remote_ip_prefix: 0.0.0.0/0
+          protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+        - remote_ip_prefix: 10.10.10.0/24
+          protocol: tcp
+          port_range_min: 4505
+          port_range_max: 4506
+        - remote_ip_prefix: 0.0.0.0/0
+          protocol: icmp
+
